@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "projectName": "Claude Parallel Work",
+    "createdAt": "2025-01-06T10:00:00Z",
+    "lastModified": "2025-01-06T10:00:00Z"
+  },
+  "tasks": [
+    {
+      "id": "cpw-auth-1",
+      "title": "Implement authentication system",
+      "description": "Create login and registration endpoints",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "high",
+      "details": "Implement JWT-based authentication with login and registration endpoints. Include password hashing with bcrypt.",
+      "testStrategy": "Write integration tests for auth endpoints, test JWT token generation and validation",
+      "subtasks": [
+        {
+          "id": "cpw-validation-1",
+          "title": "Add input validation",
+          "description": "Validate email and password formats",
+          "status": "pending",
+          "dependencies": [],
+          "priority": "high"
+        },
+        {
+          "id": "cpw-hashing-1",
+          "title": "Implement password hashing",
+          "description": "Use bcrypt for secure password storage",
+          "status": "pending",
+          "dependencies": ["cpw-validation-1"],
+          "priority": "high"
+        }
+      ]
+    },
+    {
+      "id": "cpw-db-1",
+      "title": "Set up database models",
+      "description": "Create User and Session models",
+      "status": "done",
+      "dependencies": [],
+      "priority": "high",
+      "details": "Create database models for users and sessions using the ORM",
+      "testStrategy": "Test model creation and CRUD operations"
+    },
+    {
+      "id": "cpw-api-1",
+      "title": "Create API documentation",
+      "description": "Document authentication endpoints",
+      "status": "pending",
+      "dependencies": ["cpw-auth-1"],
+      "priority": "medium",
+      "details": "Create OpenAPI/Swagger documentation for the authentication endpoints",
+      "testStrategy": "Validate OpenAPI spec and ensure examples work"
+    }
+  ]
+}
