@@ -58,6 +58,7 @@ import {
 import { PersistenceManager } from './persistence/database.js';
 import { StartupRecoveryManager } from './recovery/startup-recovery.js';
 import { handleTasksValidationTools } from './tools/tasks-validation-tools.js';
+import { dockerEnvironmentTools } from './tools/docker-environment-tools.js';
 
 // Define environment variables globally
 const debugMode = process.env.MCP_CLAUDE_DEBUG === 'true';
@@ -1240,6 +1241,28 @@ class ClaudeParallelWorkServer {
               },
               required: ['workFolder']
             } as any,
+          },
+          {
+            name: 'fix_docker_environment',
+            description: `🔧 DOCKER FIXER - Automatically fix Docker/container runtime issues
+
+**Triggers:** "fix docker", "docker not working", "secure execution not available"
+
+**Does:** Checks Docker status • Starts Colima/Docker • Initializes container pool • All in one command!
+
+🔧 WORKFLOW: fix_docker_environment → task_worker (Docker is now ready!)
+
+**Next steps:**
+• task_worker - Continue with your development tasks
+• system_status - Verify everything is running
+
+💡 Pro tip: Run this whenever you get "Secure execution not available" errors
+
+**Quick:** fix_docker_environment`,
+            inputSchema: {
+              type: 'object',
+              properties: {}
+            } as any,
           }
         );
       }
@@ -1330,6 +1353,9 @@ class ClaudeParallelWorkServer {
             break;
           case 'get_next_tasks':
             result = await this.handleGetNextTasks(args.params.arguments);
+            break;
+          case 'fix_docker_environment':
+            result = await this.handleFixDockerEnvironment();
             break;
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Tool ${toolName} not found`);
@@ -1442,7 +1468,7 @@ class ClaudeParallelWorkServer {
    */
   private async handleTaskWorker(toolArguments: any): Promise<ServerResult> {
     if (!this.secureManager) {
-      throw new McpError(ErrorCode.InternalError, 'Secure execution not available. Check Docker installation and initialization.');
+      throw new McpError(ErrorCode.InternalError, 'Secure execution not available. Run the fix_docker_environment tool to resolve this issue.');
     }
 
     if (!toolArguments?.task) {
@@ -1830,7 +1856,7 @@ ${setupInstructions}`;
    */
   private async handleAnswerClaudeQuestion(toolArguments: any): Promise<ServerResult> {
     if (!this.secureManager) {
-      throw new McpError(ErrorCode.InternalError, 'Secure execution not available.');
+      throw new McpError(ErrorCode.InternalError, 'Secure execution not available. Run the fix_docker_environment tool to resolve this issue.');
     }
 
     const { taskId, answer } = toolArguments || {};
@@ -1897,6 +1923,40 @@ ${setupInstructions}`;
 
     const result = await this.taskManagement.getNextTasks(toolArguments);
     return { content: [{ type: 'text', text: result }] };
+  }
+
+  /**
+   * Handle fix Docker environment requests
+   */
+  private async handleFixDockerEnvironment(): Promise<ServerResult> {
+    try {
+      const result = await dockerEnvironmentTools.fixDockerEnvironment();
+      
+      if (result.success && !this.secureManager) {
+        // Also reinitialize the server's secure manager if needed
+        try {
+          const progressCallback = (taskId: string, progress: any) => {
+            this.sendTaskProgress(taskId, progress);
+          };
+          
+          this.secureManager = new GitIntegratedClaudeCodeManager(progressCallback, this.persistence || undefined);
+          await this.secureManager.initialize();
+          
+          this.diffTools = new DiffManagementTools(this.secureManager);
+          this.taskOrchestration = new ParallelTaskOrchestrationTools(this.secureManager);
+          
+          result.message += '\n\n✅ Server\'s secure execution manager reinitialized';
+        } catch (error) {
+          result.message += '\n\n⚠️ Warning: Could not reinitialize server\'s secure manager';
+          result.message += '\n   You may need to restart the MCP server';
+        }
+      }
+      
+      return { content: [{ type: 'text', text: result.message }] };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new McpError(ErrorCode.InternalError, `Failed to fix Docker environment: ${errorMessage}`);
+    }
   }
 
   /**
