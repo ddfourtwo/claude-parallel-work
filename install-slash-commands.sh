@@ -3,7 +3,7 @@
 # Standalone script to install Claude Code slash commands
 # This ensures all slash commands are properly installed
 
-set -e
+# Don't exit on error - we'll handle errors explicitly
 
 # Colors for output
 RED='\033[0;31m'
@@ -112,9 +112,14 @@ install_slash_commands() {
     local copied_count=0
     local failed_count=0
     
-    for filename in "${found_files[@]}"; do
+    print_info "Starting to copy ${#found_files[@]} files..."
+    for i in "${!found_files[@]}"; do
+        filename="${found_files[$i]}"
+        print_info "Processing file $((i+1)) of ${#found_files[@]}: $filename"
         local source_file="$SOURCE_COMMANDS_DIR/$filename"
         local dest_file="$DEST_COMMANDS_DIR/$filename"
+        
+        echo -e "${BLUE}Processing:${NC} $filename"
         
         # Check if file already exists
         if [ -f "$dest_file" ]; then
@@ -124,13 +129,21 @@ install_slash_commands() {
         fi
         
         # Copy the file with verbose output
-        if cp -v "$source_file" "$dest_file" 2>&1; then
+        cp_output=$(cp -v "$source_file" "$dest_file" 2>&1)
+        cp_result=$?
+        
+        if [ $cp_result -eq 0 ]; then
+            echo "$cp_output"
             print_success "Successfully copied: $filename"
-            ((copied_count++))
+            copied_count=$((copied_count + 1))
         else
             print_error "Failed to copy: $filename"
-            ((failed_count++))
+            print_error "Error: $cp_output"
+            failed_count=$((failed_count + 1))
         fi
+        
+        # Add a small delay to ensure output is flushed
+        sleep 0.1
     done
     
     echo
