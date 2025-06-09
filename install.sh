@@ -1708,11 +1708,34 @@ copy_slash_commands() {
         return 0
     fi
     
-    # Check if there are any command files to copy
-    if ! ls "$SOURCE_COMMANDS_DIR"/*.md >/dev/null 2>&1; then
-        print_warning "No command files found in $SOURCE_COMMANDS_DIR"
-        return 0
+    # List all command files explicitly for debugging
+    print_info "Checking for command files in: $SOURCE_COMMANDS_DIR"
+    local command_files=()
+    if [ -f "$SOURCE_COMMANDS_DIR/break-down-to-work-plan.md" ]; then
+        command_files+=("$SOURCE_COMMANDS_DIR/break-down-to-work-plan.md")
     fi
+    if [ -f "$SOURCE_COMMANDS_DIR/orchestrate-tasks.md" ]; then
+        command_files+=("$SOURCE_COMMANDS_DIR/orchestrate-tasks.md")
+    fi
+    if [ -f "$SOURCE_COMMANDS_DIR/work-plan-from-doc.md" ]; then
+        command_files+=("$SOURCE_COMMANDS_DIR/work-plan-from-doc.md")
+    fi
+    
+    if [ ${#command_files[@]} -eq 0 ]; then
+        print_warning "No command files found in $SOURCE_COMMANDS_DIR"
+        # Try to find them using find command as fallback
+        print_info "Attempting to locate command files with find..."
+        while IFS= read -r -d '' file; do
+            command_files+=("$file")
+        done < <(find "$SOURCE_COMMANDS_DIR" -name "*.md" -type f -print0 2>/dev/null)
+        
+        if [ ${#command_files[@]} -eq 0 ]; then
+            print_warning "Still no command files found"
+            return 0
+        fi
+    fi
+    
+    print_info "Found ${#command_files[@]} command file(s) to install"
     
     # Create destination directory if it doesn't exist
     if [ ! -d "$DEST_COMMANDS_DIR" ]; then
@@ -1728,7 +1751,7 @@ copy_slash_commands() {
     print_info "Copying slash commands..."
     local copied_count=0
     
-    for cmd_file in "$SOURCE_COMMANDS_DIR"/*.md; do
+    for cmd_file in "${command_files[@]}"; do
         if [ -f "$cmd_file" ]; then
             local filename=$(basename "$cmd_file")
             
